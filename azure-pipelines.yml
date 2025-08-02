@@ -10,6 +10,8 @@ pr:
       - develop
 
 variables:
+- group: SecurityVariables  
+
   DOCKER_IMAGE_NAME: 'scanned-image:latest'
   DOCKERFILE_NAME: 'DockerfileToScan'
   REPORT_NAME: 'docksec-report.html'
@@ -21,8 +23,6 @@ stages:
 - stage: SecurityScan
   jobs:
   - job: RunSecurityScan
-    variables:
-      SNYK_TOKEN: $(SNYK_TOKEN)
     steps:
     - task: UsePythonVersion@0
       inputs:
@@ -62,6 +62,8 @@ stages:
         npm install -g snyk
         snyk auth $(SNYK_TOKEN)
         snyk container test $(DOCKER_IMAGE_NAME) --severity-threshold=high --json > snyk-report.json
+      env:
+        SNYK_TOKEN: $(SNYK_TOKEN)
       displayName: 'Run Snyk Container Scan'
 
     - task: PublishPipelineArtifact@1
@@ -70,4 +72,3 @@ stages:
         artifact: 'snyk-report'
         publishLocation: 'pipeline'
       displayName: 'Publish Snyk Report'
-
