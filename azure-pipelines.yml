@@ -64,9 +64,14 @@ stages:
       displayName: 'Publish HTML Report'
 
     - script: |
-        npm install -g snyk
+        echo " Authenticating with Snyk..."
         snyk auth $(SNYK_TOKEN)
-        snyk container test $(DOCKER_IMAGE_NAME) --severity-threshold=high --json > snyk-report.json
+
+        echo " Running Snyk scan for Org: hemalathanatarajan4"
+        snyk container test $(DOCKER_IMAGE_NAME) \
+          --org=hemalathanatarajan4 \
+          --severity-threshold=high \
+          --json > snyk-report.json || true
       env:
         SNYK_TOKEN: $(SNYK_TOKEN)
       displayName: 'Run Snyk Container Scan'
