@@ -6,7 +6,7 @@ trigger:
 pr:
   branches:
     include:
-      - main
+      - master
       - develop
 
 variables:
@@ -70,3 +70,4 @@ stages:
         artifact: 'snyk-report'
         publishLocation: 'pipeline'
       displayName: 'Publish Snyk Report'
+
