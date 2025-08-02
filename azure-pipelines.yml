@@ -1,0 +1,69 @@
+trigger:
+  branches:
+    include:
+      - main
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  DOCKER_IMAGE_NAME: 'scanned-image:latest'
+  DOCKERFILE_NAME: 'DockerfileToScan'
+  REPORT_NAME: 'docksec-report.html'
+
+stages:
+- stage: SecurityScan
+  jobs:
+  - job: RunSecurityScan
+    steps:
+
+    - task: UsePythonVersion@0
+      inputs:
+        versionSpec: '3.10'
+        addToPath: true
+
+    - script: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+      displayName: 'Install Python dependencies'
+
+    - script: |
+        curl -Lo hadolint https://github.com/hadolint/hadolint/releases/latest/download/hadolint-Linux-x86_64
+        chmod +x hadolint
+        sudo mv hadolint /usr/local/bin/
+      displayName: 'Install Hadolint'
+
+    - script: |
+        curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
+      displayName: 'Install Trivy'
+
+    - script: |
+        docker build -t $(DOCKER_IMAGE_NAME) -f $(DOCKERFILE_NAME) .
+      displayName: 'Build Docker Image'
+
+    - script: |
+        python docksec.py $(DOCKERFILE_NAME) --output $(REPORT_NAME)
+      displayName: 'Run DockSec Scan Script'
+
+    - task: PublishPipelineArtifact@1
+      inputs:
+        targetPath: '$(System.DefaultWorkingDirectory)/$(REPORT_NAME)'
+        artifact: 'security-report'
+        publishLocation: 'pipeline'
+      displayName: 'Publish HTML Report'
+
+    # ✅ NEW: Install and run Snyk
+    - script: |
+        npm install -g snyk
+        snyk auth $SNYK_TOKEN
+        snyk container test $(DOCKER_IMAGE_NAME) --severity-threshold=high --json > snyk-report.json
+      env:
+        SNYK_TOKEN: $(SNYK_TOKEN)
+      displayName: 'Run Snyk Container Scan'
+
+    - task: PublishPipelineArtifact@1
+      inputs:
+        targetPath: '$(System.DefaultWorkingDirectory)/snyk-report.json'
+        artifact: 'snyk-report'
+        publishLocation: 'pipeline'
+      displayName: 'Publish Snyk Report'
