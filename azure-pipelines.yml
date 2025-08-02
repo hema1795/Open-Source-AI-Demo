@@ -10,11 +10,16 @@ pr:
       - develop
 
 variables:
-- group: SecurityVariables  
+- group: SecurityVariables
 
-  DOCKER_IMAGE_NAME: 'scanned-image:latest'
-  DOCKERFILE_NAME: 'DockerfileToScan'
-  REPORT_NAME: 'docksec-report.html'
+- name: DOCKER_IMAGE_NAME
+  value: 'scanned-image:latest'
+
+- name: DOCKERFILE_NAME
+  value: 'DockerfileToScan'
+
+- name: REPORT_NAME
+  value: 'docksec-report.html'
 
 pool:
   vmImage: 'ubuntu-latest'
