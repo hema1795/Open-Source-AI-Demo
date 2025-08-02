@@ -1,26 +1,32 @@
 trigger:
   branches:
+    exclude:
+      - "*"
+
+pr:
+  branches:
     include:
       - main
-
-pool:
-  vmImage: 'ubuntu-latest'
+      - develop
 
 variables:
   DOCKER_IMAGE_NAME: 'scanned-image:latest'
   DOCKERFILE_NAME: 'DockerfileToScan'
   REPORT_NAME: 'docksec-report.html'
 
+pool:
+  vmImage: 'ubuntu-latest'
+
 stages:
 - stage: SecurityScan
   jobs:
   - job: RunSecurityScan
+    variables:
+      SNYK_TOKEN: $(SNYK_TOKEN)
     steps:
-
     - task: UsePythonVersion@0
       inputs:
         versionSpec: '3.10'
-        addToPath: true
 
     - script: |
         python -m pip install --upgrade pip
@@ -52,13 +58,10 @@ stages:
         publishLocation: 'pipeline'
       displayName: 'Publish HTML Report'
 
-    # ✅ NEW: Install and run Snyk
     - script: |
         npm install -g snyk
-        snyk auth $SNYK_TOKEN
+        snyk auth $(SNYK_TOKEN)
         snyk container test $(DOCKER_IMAGE_NAME) --severity-threshold=high --json > snyk-report.json
-      env:
-        SNYK_TOKEN: $(SNYK_TOKEN)
       displayName: 'Run Snyk Container Scan'
 
     - task: PublishPipelineArtifact@1
