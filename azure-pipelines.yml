@@ -93,3 +93,23 @@ stages:
         artifact: 'snyk-report'
         publishLocation: 'pipeline'
       displayName: 'Publish Snyk Report'
+
+    - task: SnykSecurityScan@1
+      displayName: 'Snyk Open Source Scan'
+      inputs:
+        serviceConnectionEndpoint: 'Snyk-Connection'  
+        testType: 'openSource'
+        targetFile: 'requirements.txt'
+        severityThreshold: 'medium'
+
+    - task: SnykSecurityScan@1
+      displayName: 'Snyk Container Image Scan'
+      inputs:
+        serviceConnectionEndpoint: 'Snyk-Connection'
+        testType: 'container'
+        dockerImageName: '$(DOCKER_IMAGE_NAME)'
+        dockerfilePath: '$(DOCKERFILE_NAME)'
+        severityThreshold: 'high'
+        monitorWhen: 'always'
+        failOnIssues: false
+
