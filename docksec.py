@@ -18,7 +18,7 @@ def run_hadolint(dockerfile_path):
         result = subprocess.run(["hadolint", dockerfile_path], capture_output=True, text=True)
         return result.stdout
     except FileNotFoundError:
-        return "❌ Hadolint not installed or not in PATH."
+        return " Hadolint not installed or not in PATH."
 
 def run_trivy_image(image_name="scanned-image:latest"):
     print(f"[*] Running Trivy image scan on {image_name}...")
@@ -26,7 +26,7 @@ def run_trivy_image(image_name="scanned-image:latest"):
         result = subprocess.run(["trivy", "image", image_name, "--format", "json"], capture_output=True, text=True)
         return result.stdout
     except FileNotFoundError:
-        return "❌ Trivy not installed or not in PATH."
+        return " Trivy not installed or not in PATH."
 
 def run_docker_bench():
     print("[*] Running Docker Bench (basic check)...")
@@ -43,7 +43,7 @@ def ask_ai(prompt):
     print("[*] Asking Ollama (TinyLLaMA)...")
 
     if not is_ollama_running():
-        return "❌ Ollama is not running. Please run `ollama serve` before executing this script."
+        return " Ollama is not running. Please run `ollama serve` before executing this script."
 
     try:
         response = requests.post(
@@ -56,9 +56,9 @@ def ask_ai(prompt):
             timeout=60
         )
         response.raise_for_status()
-        return response.json().get("response", "⚠️ No response from Ollama.").strip()
+        return response.json().get("response", " No response from Ollama.").strip()
     except Exception as e:
-        return f"❌ AI suggestions unavailable: {str(e)}"
+        return f" AI suggestions unavailable: {str(e)}"
 
 def generate_html_report(hadolint_output, trivy_output, ai_output, out_file="docksec-report.html"):
     print("[*] Generating HTML report...")
@@ -126,3 +126,4 @@ Please provide:
 
 if __name__ == "__main__":
     main()
+
