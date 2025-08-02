@@ -32,6 +32,7 @@ stages:
     - task: UsePythonVersion@0
       inputs:
         versionSpec: '3.10'
+      displayName: 'Install Python 3.10'
 
     - script: |
         python -m pip install --upgrade pip
@@ -63,11 +64,21 @@ stages:
         publishLocation: 'pipeline'
       displayName: 'Publish HTML Report'
 
+    # ✅ Install Node.js before using npm and snyk
+    - task: NodeTool@0
+      inputs:
+        versionSpec: '18.x'
+      displayName: 'Install Node.js'
+
     - script: |
-        echo " Authenticating with Snyk..."
+        npm install -g snyk
+      displayName: 'Install Snyk CLI'
+
+    - script: |
+        echo "Authenticating with Snyk..."
         snyk auth $(SNYK_TOKEN)
 
-        echo " Running Snyk scan for Org: hemalathanatarajan4"
+        echo "Running Snyk scan for Org: hemalathanatarajan4"
         snyk container test $(DOCKER_IMAGE_NAME) \
           --org=hemalathanatarajan4 \
           --severity-threshold=high \
