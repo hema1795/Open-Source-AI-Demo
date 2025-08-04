@@ -61,10 +61,6 @@ stages:
         trivy image --format json --output $(System.DefaultWorkingDirectory)/trivy-report.json $(DOCKER_IMAGE_NAME)
       displayName: 'Run Trivy Scan (JSON output)'
 
-    - script: |
-        python $(System.DefaultWorkingDirectory)/convert_trivy_to_junit.py $(System.DefaultWorkingDirectory)/trivy-report.json $(System.DefaultWorkingDirectory)/trivy-report.xml
-      displayName: 'Convert Trivy JSON to JUnit XML'
-
     - task: PublishTestResults@2
       inputs:
         testResultsFiles: '$(System.DefaultWorkingDirectory)/trivy-report.xml'
