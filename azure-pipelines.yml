@@ -1,0 +1,131 @@
+trigger:
+  branches:
+    exclude:
+      - "*"
+
+pr:
+  branches:
+    include:
+      - master
+      - develop
+
+variables:
+- group: SecurityVariables
+
+- name: DOCKER_IMAGE_NAME
+  value: 'scanned-image:latest'
+
+- name: DOCKERFILE_NAME
+  value: 'DockerfileToScan'
+
+- name: REPORT_NAME
+  value: 'docksec-report.html'
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+stages:
+- stage: SecurityScan
+  jobs:
+  - job: RunSecurityScan
+    steps:
+    - task: UsePythonVersion@0
+      inputs:
+        versionSpec: '3.10'
+      displayName: 'Install Python 3.10'
+
+    - script: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+      displayName: 'Install Python dependencies'
+
+    - script: |
+        curl -Lo hadolint https://github.com/hadolint/hadolint/releases/latest/download/hadolint-Linux-x86_64
+        chmod +x hadolint
+        sudo mv hadolint /usr/local/bin/
+      displayName: 'Install Hadolint'
+
+    - script: |
+        curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
+      displayName: 'Install Trivy'
+
+    - script: |
+        docker build -t $(DOCKER_IMAGE_NAME) -f $(DOCKERFILE_NAME) .
+      displayName: 'Build Docker Image'
+
+    - script: |
+        python docksec.py $(DOCKERFILE_NAME) --output $(REPORT_NAME)
+      displayName: 'Run DockSec Scan Script'
+
+    - script: |
+        trivy image --format json --output $(System.DefaultWorkingDirectory)/trivy-report.json $(DOCKER_IMAGE_NAME)
+      displayName: 'Run Trivy Scan (JSON output)'
+
+    - task: PublishTestResults@2
+      inputs:
+        testResultsFiles: '$(System.DefaultWorkingDirectory)/trivy-report.xml'
+        testRunTitle: 'Trivy Vulnerability Scan'
+      displayName: 'Publish Trivy Results as Test Report'
+
+    - task: PublishPipelineArtifact@1
+      inputs:
+        targetPath: '$(System.DefaultWorkingDirectory)/trivy-report.json'
+        artifact: 'trivy-report-json'
+      displayName: 'Publish Trivy JSON Report'
+
+    - task: PublishPipelineArtifact@1
+      inputs:
+        targetPath: '$(System.DefaultWorkingDirectory)/$(REPORT_NAME)'
+        artifact: 'security-report'
+        publishLocation: 'pipeline'
+      displayName: 'Publish HTML Report'
+
+    # ✅ Install Node.js before using npm and snyk
+    - task: NodeTool@0
+      inputs:
+        versionSpec: '18.x'
+      displayName: 'Install Node.js'
+
+    - script: |
+        npm install -g snyk
+      displayName: 'Install Snyk CLI'
+
+    - script: |
+        echo "Authenticating with Snyk..."
+        snyk auth $(SNYK_TOKEN)
+
+        echo "Running Snyk scan for Org: hemalathanatarajan4"
+        snyk container test $(DOCKER_IMAGE_NAME) \
+          --org=hemalathanatarajan4 \
+          --severity-threshold=high \
+          --json > snyk-report.json || true
+      env:
+        SNYK_TOKEN: $(SNYK_TOKEN)
+      displayName: 'Run Snyk Container Scan'
+
+    - task: PublishPipelineArtifact@1
+      inputs:
+        targetPath: '$(System.DefaultWorkingDirectory)/snyk-report.json'
+        artifact: 'snyk-report'
+        publishLocation: 'pipeline'
+      displayName: 'Publish Snyk Report'
+
+    - task: SnykSecurityScan@1
+      displayName: 'Snyk Open Source Scan'
+      inputs:
+        serviceConnectionEndpoint: 'Snyk-Connection'  
+        testType: 'openSource'
+        targetFile: 'requirements.txt'
+        severityThreshold: 'medium'
+
+    - task: SnykSecurityScan@1
+      displayName: 'Snyk Container Image Scan'
+      inputs:
+        serviceConnectionEndpoint: 'Snyk-Connection'
+        testType: 'container'
+        dockerImageName: '$(DOCKER_IMAGE_NAME)'
+        dockerfilePath: '$(DOCKERFILE_NAME)'
+        severityThreshold: 'high'
+        monitorWhen: 'always'
+        failOnIssues: false
+
